@@ -13,6 +13,10 @@
 #
 #     grep -rn "<version>" --include=pom.xml . | grep -v target | grep SNAPSHOT
 #
+# jmsfx-historical has its own version line (jmsfx#175) and is left out of the above: restore its pom after
+# versions:set, and release it with a tag of its own, jmsfx-historical-X.Y.Z, which deploys that module alone.
+# See docs/releasing.md.
+#
 # A tag stages a deployment on the Maven Central Portal and creates a GitHub Release. autoPublish is false in
 # the pom, so the Portal holds the staging until someone publishes it deliberately - a bad one is dropped
 # rather than superseded. 2.0.0 is the first jmsfx release to reach Central; 1.5.0 and earlier only ever
@@ -60,6 +64,13 @@ on:
         type: choice
         options: [bundles, rehearse]
         default: bundles
+      library:
+        description: >-
+          With "rehearse": a library on its own version line to rehearse alone, as its
+          <artifactId>-<version> tag would release it (jmsfx#175). Empty rehearses the repository.
+        type: choice
+        options: ['', jmsfx-historical]
+        default: ''
 
 jobs:
   build:
@@ -106,21 +117,72 @@ jobs:
         echo "$RUNNER_TEMP/apache-maven-$version/bin" >> "$GITHUB_PATH"
         "$RUNNER_TEMP/apache-maven-$version/bin/mvn" -v
 
+    # What this run releases (jmsfx#175). A tag named <artifactId>-<version>, such as jmsfx-historical-2.1.0,
+    # releases that library alone, on its own version line; so does a rehearsal naming a library. Anything
+    # else releases the repository, which no longer includes the libraries that have their own line. The
+    # library's profile is its artifactId less "jmsfx-", which is how jmsfx-parent names them.
+    - name: Decide what is released
+      id: scope
+      env:
+        INPUT_LIBRARY: ${{ inputs.library }}
+        INPUT_MODE: ${{ inputs.mode }}
+      run: |
+        OWN_LINE="jmsfx-historical"
+        LIBRARY=""
+        if [ "$GITHUB_REF_TYPE" = tag ] && [[ "$GITHUB_REF_NAME" =~ ^(jmsfx-[a-z]+)-([0-9][0-9A-Za-z.]*)$ ]]; then
+          LIBRARY=${BASH_REMATCH[1]}
+          TAG_VERSION=${BASH_REMATCH[2]}
+        elif [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$INPUT_MODE" = rehearse ] && [ -n "$INPUT_LIBRARY" ]; then
+          LIBRARY=$INPUT_LIBRARY
+        fi
+        if [ -n "$LIBRARY" ]; then
+          if ! [[ " $OWN_LINE " == *" $LIBRARY "* ]]; then
+            echo "::error::$LIBRARY has no version line of its own; only $OWN_LINE can be released alone"
+            exit 1
+          fi
+          echo "library=$LIBRARY" >> "$GITHUB_OUTPUT"
+          echo "profile=${LIBRARY#jmsfx-}" >> "$GITHUB_OUTPUT"
+          echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Releasing $LIBRARY alone."
+        else
+          echo "exclude=$(echo $OWN_LINE | sed 's/[^ ]*/!:&/g; s/ /,/g')" >> "$GITHUB_OUTPUT"
+          echo "Releasing the repository, without $OWN_LINE."
+        fi
+
     - name: Verify the tag names a release version
       if: github.ref_type == 'tag'
+      env:
+        LIBRARY: ${{ steps.scope.outputs.library }}
+        PROFILE: ${{ steps.scope.outputs.profile }}
+        TAG_VERSION: ${{ steps.scope.outputs.version }}
       run: |
-        VERSION=$(mvn -q -B help:evaluate -Dexpression=project.version -DforceStdout 2>/dev/null | tail -n1)
+        if [ -n "$LIBRARY" ]; then
+          VERSION=$(mvn -q -B -P"$PROFILE" -pl ":$LIBRARY" help:evaluate -Dexpression=project.version -DforceStdout 2>/dev/null | tail -n1)
+          EXPECTED=$TAG_VERSION
+        else
+          VERSION=$(mvn -q -B help:evaluate -Dexpression=project.version -DforceStdout 2>/dev/null | tail -n1)
+          EXPECTED=$GITHUB_REF_NAME
+        fi
         echo "tag:         $GITHUB_REF_NAME"
-        echo "pom version: $VERSION"
+        echo "pom version: $VERSION${LIBRARY:+ ($LIBRARY)}"
         case "$VERSION" in
           *-SNAPSHOT)
             echo "::error::pom version $VERSION is a snapshot - remove -SNAPSHOT before tagging a release"
             exit 1
             ;;
         esac
-        if [ "$VERSION" != "$GITHUB_REF_NAME" ]; then
+        if [ "$VERSION" != "$EXPECTED" ]; then
           echo "::error::tag $GITHUB_REF_NAME does not match pom version $VERSION"
           exit 1
+        fi
+        # versions:set -DprocessAllModules=true sets every module, so a repository release that forgot to
+        # restore jmsfx-historical's pom afterwards would carry it onto the repository's number.
+        if [ -z "$LIBRARY" ]; then
+          HISTORICAL=$(mvn -q -B -Phistorical -pl :jmsfx-historical help:evaluate -Dexpression=project.version -DforceStdout 2>/dev/null | tail -n1)
+          if [ "$HISTORICAL" = "$VERSION" ]; then
+            echo "::error::jmsfx-historical is on $HISTORICAL, the repository's version: restore its pom after versions:set (jmsfx#175)"
+            exit 1
+          fi
         fi
 
     # Tests already ran via maven.yml's own push-to-master trigger, before this commit was ever tagged - no need
@@ -129,18 +191,28 @@ jobs:
     # default - a build naming none is refused by an enforcer rule rather than quietly producing an
     # application with no library in it. The library named here is the one whose artifacts go to
     # Central, which is the standard APP-6E one.
+    # A library released alone needs no build here: the publish builds it, and it has no bundles.
     - name: Build
-      if: inputs.mode != 'rehearse'
-      run: mvn -B --no-transfer-progress -DskipTests -Pstandard package
+      if: inputs.mode != 'rehearse' && steps.scope.outputs.library == ''
+      run: mvn -B --no-transfer-progress -DskipTests -Pstandard package -pl "${{ steps.scope.outputs.exclude }}"
 
     # Everything a release does except the two steps that cannot be undone. install rather than package,
     # so the artifacts land in the local repository in the layout a real release stages them in, for the
     # artifact list below. Tests skipped as in the publish, for the same reason as the build above.
+    # A library on its own line is built alone, under its own profile, exactly as its tag would deploy it.
     - name: Rehearse the release build
       if: github.event_name == 'workflow_dispatch' && inputs.mode == 'rehearse'
-      run: mvn -B --no-transfer-progress -DskipTests -Pstandard,release install
       env:
         MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        LIBRARY: ${{ steps.scope.outputs.library }}
+        PROFILE: ${{ steps.scope.outputs.profile }}
+        EXCLUDE: ${{ steps.scope.outputs.exclude }}
+      run: |
+        if [ -n "$LIBRARY" ]; then
+          mvn -B --no-transfer-progress -DskipTests -P"$PROFILE",release install -pl ":$LIBRARY"
+        else
+          mvn -B --no-transfer-progress -DskipTests -Pstandard,release install -pl "$EXCLUDE"
+        fi
 
     # A tag pushed by the release train has already had its approval, so it publishes straight through and
     # waits until Central reports it published. Any other tag stages a validated deployment for a person to
@@ -173,14 +245,26 @@ jobs:
       # is exactly the trap jmsfx#112 describes - naming a profile deactivates an activeByDefault
       # one, so a defaulted library would have silently dropped out here and published an
       # application that starts and then answers 500 to everything.
-      run: >-
-        mvn -B --no-transfer-progress -DskipTests -Pstandard,release deploy
-        -Dcentral.autoPublish=${{ steps.publish.outputs.auto }}
-        -Dcentral.waitUntil=${{ steps.publish.outputs.wait }}
+      #
+      # A library on its own line (jmsfx#175) deploys alone under its own profile; its parent and jmsfx-core
+      # are released versions from Central, so nothing else in the reactor is needed. The repository leaves
+      # those libraries out, so their snapshot versions never reach the publishing plugin.
+      run: |
+        if [ -n "$LIBRARY" ]; then
+          SCOPE=(-P"$PROFILE",release -pl ":$LIBRARY")
+        else
+          SCOPE=(-Pstandard,release -pl "$EXCLUDE")
+        fi
+        mvn -B --no-transfer-progress -DskipTests "${SCOPE[@]}" deploy \
+          -Dcentral.autoPublish=${{ steps.publish.outputs.auto }} \
+          -Dcentral.waitUntil=${{ steps.publish.outputs.wait }}
       env:
         MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
         MAVEN_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
         MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        LIBRARY: ${{ steps.scope.outputs.library }}
+        PROFILE: ${{ steps.scope.outputs.profile }}
+        EXCLUDE: ${{ steps.scope.outputs.exclude }}
 
     # The files a release publishes, or a rehearsal would publish, in repository layout without signatures
     # or checksums: what the release train compares with its own rehearsal. A real release lists what the
@@ -189,10 +273,19 @@ jobs:
     # Central: a local repository also holds other ctggames artifacts, from the cache or from a whole-train
     # rehearsal, and a sibling library can share this version number. An empty list fails the step, so a
     # change in either layout cannot pass unnoticed as "nothing to compare".
+    #
+    # A library released alone (jmsfx#175) lists that one module at its own version.
     - name: List the release artifacts
       if: github.ref_type == 'tag' || inputs.mode == 'rehearse'
+      env:
+        LIBRARY: ${{ steps.scope.outputs.library }}
+        PROFILE: ${{ steps.scope.outputs.profile }}
       run: |
-        VERSION=$(mvn -q -B help:evaluate -Dexpression=project.version -DforceStdout 2>/dev/null | tail -n1)
+        if [ -n "$LIBRARY" ]; then
+          VERSION=$(mvn -q -B -P"$PROFILE" -pl ":$LIBRARY" help:evaluate -Dexpression=project.version -DforceStdout 2>/dev/null | tail -n1)
+        else
+          VERSION=$(mvn -q -B help:evaluate -Dexpression=project.version -DforceStdout 2>/dev/null | tail -n1)
+        fi
         GROUP=$(mvn -q -B help:evaluate -Dexpression=project.groupId -DforceStdout 2>/dev/null | tail -n1 | tr . /)
         STAGING=$(find . -type d -path '*/target/central-staging' | head -n1)
         ROOT=${STAGING:-$HOME/.m2/repository}
@@ -209,6 +302,12 @@ jobs:
         print('|'.join(sorted(modules - excluded)))
         PY
         )
+        # The repository's list leaves out the libraries on their own line, which it does not release.
+        if [ -n "$LIBRARY" ]; then
+          MODULES=$LIBRARY
+        else
+          MODULES=$(echo "$MODULES" | tr '|' '\n' | grep -vx 'jmsfx-historical' | paste -sd'|')
+        fi
         echo "Listing $GROUP at $VERSION from $ROOT, for: $MODULES"
         (cd "$ROOT" && find "$GROUP" -type f -path "*/$VERSION/*") \
           | grep -E "^$GROUP/($MODULES)/$VERSION/" \
@@ -236,19 +335,29 @@ jobs:
     # After the publish, so a failed deploy cannot leave a release announcing a version that
     # never reached Central - which is how foxglove's 0.9.5 went wrong.
     - name: Create release
-      if: github.ref_type == 'tag'
+      if: github.ref_type == 'tag' && steps.scope.outputs.library == ''
       uses: ncipollo/release-action@v1
       with:
         allowUpdates: true
         # Named rather than globbed. This step runs after the publish, so -Prelease has already
         # built sources, javadoc and jmsfx-core's test jar into the same directories - and those
-        # belong on Central, where a build resolves them, not attached here as well. All four
-        # libraries, because all four publish.
+        # belong on Central, where a build resolves them, not attached here as well. The three
+        # libraries the repository publishes; jmsfx-historical has its own line and its own release.
         artifacts: >-
           jmsfx-core/target/jmsfx-core-${{ github.ref_name }}.jar,
           library/jmsfx-standard/target/jmsfx-standard-${{ github.ref_name }}.jar,
-          library/jmsfx-historical/target/jmsfx-historical-${{ github.ref_name }}.jar,
           library/jmsfx-battleorder/target/jmsfx-battleorder-${{ github.ref_name }}.jar
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    # A library released alone (jmsfx#175) gets a release of its own, carrying only its jar.
+    - name: Create release for the library
+      if: github.ref_type == 'tag' && steps.scope.outputs.library != ''
+      uses: ncipollo/release-action@v1
+      with:
+        allowUpdates: true
+        name: ${{ steps.scope.outputs.library }} ${{ steps.scope.outputs.version }}
+        artifacts: >-
+          library/${{ steps.scope.outputs.library }}/target/${{ steps.scope.outputs.library }}-${{ steps.scope.outputs.version }}.jar
         token: ${{ secrets.GITHUB_TOKEN }}
 
   # jpackage bundles a Java runtime with the application, and can only produce a
@@ -258,8 +367,10 @@ jobs:
   package:
     name: Package (${{ matrix.library }}, ${{ matrix.target.platform }})
     needs: build
-    # A rehearsal proves the release build, not the bundles; "bundles" is the mode that builds them.
-    if: inputs.mode != 'rehearse'
+    # A rehearsal proves the release build, not the bundles; "bundles" is the mode that builds them. A
+    # library released alone (a jmsfx-<library>-<version> tag, jmsfx#175) has no bundles: they are the
+    # applications, which stay on the repository's version.
+    if: inputs.mode != 'rehearse' && !(github.ref_type == 'tag' && startsWith(github.ref_name, 'jmsfx-'))
     strategy:
       # One combination failing should not deny the others their artifacts.
       fail-fast: false
