@@ -42,8 +42,13 @@ Then read, rather than run:
 
 ```bash
 mvn versions:set -DnewVersion=X.Y.Z -DprocessAllModules=true -DgenerateBackupPoms=false
-grep -rn SNAPSHOT --include=pom.xml . | grep -v target      # must be empty
+git checkout -- library/jmsfx-historical/pom.xml           # it has its own line; see below
+grep -rn SNAPSHOT --include=pom.xml . | grep -v target      # only jmsfx-historical's version and jmsfx.historical.version
 ```
+
+**`processAllModules` sets every module, including jmsfx-historical**, and moves its parent too: neither
+`-DoldVersion` nor `-pl '!:jmsfx-historical'` stops it. So restore that pom straight after. The release
+workflow refuses a repository tag that finds jmsfx-historical on the repository's version.
 
 **`-DprocessAllModules=true` is not optional.** Since [#102](https://github.com/ctggames/jmsfx/issues/102) no
 module declares the root aggregator as its parent, so the default parent-chain walk bumps the aggregator
@@ -107,6 +112,36 @@ curl -s https://repo1.maven.org/maven2/io/github/ctgnz/jmsfx-core/X.Y.Z/
 
 Deploy per `jmsfx-viewer/jmsfx-server/deploy/README.md`, **from the tag** — master is about to move on.
 Then one `Bump to <next>-SNAPSHOT` commit.
+
+## Releasing one library
+
+**jmsfx-historical has its own version line** ([#175](https://github.com/ctggames/jmsfx/issues/175)): it changes on
+its own schedule, so it is released alone, and a repository release leaves it out.
+
+- **Its pom carries its own version** (2.1.0 was the first). `jmsfx-parent`'s `jmsfx.historical.version` must name
+  the same, so the viewer applications build against the in-tree library. Bump both together.
+- **Its parent and jmsfx-core are released versions from Central** (`jmsfx-parent` 2.0.2, `<relativePath/>`, and
+  `jmsfx.core.version` 2.0.2). Central takes no artifact whose parent is a snapshot. Move them forward
+  deliberately, when a jmsfx release has something the library needs.
+- **A tag named `<artifactId>-<version>` releases it**, e.g. `jmsfx-historical-2.1.0`. The workflow checks the tag
+  against the module's version, deploys `-Phistorical,release -pl :jmsfx-historical`, lists that module's
+  artifacts, and creates a GitHub Release carrying only its jar. It builds no desktop bundles: those are the
+  applications, which stay on the repository's version.
+- **Rehearse it first**: run the workflow with `mode: rehearse` and `library: jmsfx-historical`, or locally
+  `mvn -Phistorical,release clean install -pl :jmsfx-historical -DskipTests -Dgpg.skip=true` (javadoc included).
+
+The sequence:
+
+```bash
+mvn versions:set -DnewVersion=X.Y.Z -pl :jmsfx-historical -DgenerateBackupPoms=false
+# and set jmsfx.historical.version in jmsfx-parent/pom.xml to X.Y.Z
+git commit -am "Release jmsfx-historical X.Y.Z"
+git tag jmsfx-historical-X.Y.Z && git push origin master jmsfx-historical-X.Y.Z
+# publish in the Portal, check repo1, then bump both to the next -SNAPSHOT
+```
+
+The release train treats jmsfx as one library and runs `versions:set -DprocessAllModules=true`, so it does not
+know about this line yet; see ctggames/release-train for the follow-up.
 
 ## What keeps going wrong
 

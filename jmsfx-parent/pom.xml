@@ -64,7 +64,8 @@
         -->
         <jmsfx.core.version>${project.version}</jmsfx.core.version>
         <jmsfx.standard.version>${project.version}</jmsfx.standard.version>
-        <jmsfx.historical.version>${project.version}</jmsfx.historical.version>
+        <!-- jmsfx-historical's own version line (jmsfx#175): keep this equal to that module's version. -->
+        <jmsfx.historical.version>2.1.0-SNAPSHOT</jmsfx.historical.version>
         <jmsfx.battleorder.version>${project.version}</jmsfx.battleorder.version>
         <!--
             How a release reaches Central. These defaults stage a validated deployment and leave publishing

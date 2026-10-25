@@ -9,6 +9,7 @@ Modules are grouped by deliverable rather than flat (#102), which is also how th
 - `jmsfx-tools/` - `jmsfx-generator`, `jmsfx-editor`. A real parent pom: these share a release, being coupled through the model file rather than the dependency graph.
 - `jmsfx-viewer/` - `jmsfx-creator`, `jmsfx-server`. A real parent pom: one capability, two front ends.
 - `library/` - `jmsfx-standard`, `jmsfx-historical`, `jmsfx-battleorder`. A **plain directory, not a module** - these are exactly the lifecycles that should not move together. All three are in `<modules>` and build.
+- **`jmsfx-historical` has its own version line** (#175): its own version (`jmsfx-parent`'s `jmsfx.historical.version` must match it), the released `jmsfx-parent` and `jmsfx-core` from Central, and its own tag, `jmsfx-historical-X.Y.Z`. A repository release leaves it out. `versions:set -DprocessAllModules=true` still rewrites its pom, so restore it after a repository bump. See `docs/releasing.md`.
 
 **Every build must name a library**: `mvn -Pstandard verify` or `-Phistorical` (#112). The profiles live in `jmsfx-viewer` and supply the runtime library both applications ship with; there is no `activeByDefault`, because naming any other profile would deactivate it silently, and an enforcer rule refuses a build that names none. `jmsfx-server`'s fat jar carries the library as a **classifier** - `jmsfx-server-2.0.0-standard.jar` - so the thin unclassified jar beside it is not the one to run.
 
