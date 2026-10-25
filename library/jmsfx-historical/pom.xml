@@ -21,7 +21,7 @@
   </properties>
   <artifactId>jmsfx-historical</artifactId>
   <!-- Its own, not the repository's. jmsfx-parent's jmsfx.historical.version must name the same. -->
-  <version>2.1.0</version>
+  <version>2.1.1-SNAPSHOT</version>
     <name>JMSFX Historical Extension</name>
     <description>An extension to the APP-6E symbology model for depicting historical military organisation: icons APP-6E dropped, an enlarged Dismounted Individual symbol set, and additional amplifiers for formations and equipment modern NATO armies no longer field.</description>
     <dependencies>
