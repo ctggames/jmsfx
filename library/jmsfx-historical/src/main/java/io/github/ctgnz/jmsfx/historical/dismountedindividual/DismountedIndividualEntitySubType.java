@@ -534,6 +534,12 @@ public enum DismountedIndividualEntitySubType implements EntitySubType {
                 return "<g id=\"main\" transform=\"translate(276.03916,558.64396)\">\n    <g transform=\"matrix(0.8,0,0,0.8,-214.63916,-481.05792)\">\n      <g transform=\"matrix(0.9,0,0,0.9,20,50)\">\n        <path d=\"m 318.888,310.48 c 34.122,0 61.782,27.66 61.782,61.782 0,34.117 -27.657,61.778 -61.782,61.778 -34.119,0 -61.779,-27.662 -61.779,-61.778 0,-34.122 27.659,-61.782 61.779,-61.782 z\" fill=\"none\" stroke=\"#000000\" stroke-width=\"5\"/>\n        <line fill=\"none\" stroke=\"#000000\" stroke-width=\"5\" x1=\"269.465\" x2=\"368.312\" y1=\"338.281\" y2=\"406.238\"/>\n        <line fill=\"none\" stroke=\"#000000\" stroke-width=\"5\" x1=\"269.465\" x2=\"368.312\" y1=\"406.238\" y2=\"338.281\"/>\n        <line fill=\"none\" stroke=\"#000000\" stroke-width=\"5\" x1=\"318.888\" x2=\"318.888\" y1=\"310.48\" y2=\"434.04\"/>\n      </g>\n      <g transform=\"matrix(0.8,0,0,0.7,40,109.6359)\">\n        <ellipse cx=\"271.97\" cy=\"495.271\" fill=\"none\" rx=\"10.04\" ry=\"10.039\" stroke=\"#000000\" stroke-width=\"5\"/>\n        <ellipse cx=\"299.771\" cy=\"495.271\" fill=\"none\" rx=\"10.04\" ry=\"10.039\" stroke=\"#000000\" stroke-width=\"5\"/>\n        <ellipse cx=\"395.53\" cy=\"495.271\" fill=\"none\" rx=\"10.04\" ry=\"10.039\" stroke=\"#000000\" stroke-width=\"5\"/>\n        <ellipse cx=\"367.727\" cy=\"495.271\" fill=\"none\" rx=\"10.04\" ry=\"10.039\" stroke=\"#000000\" stroke-width=\"5\"/>\n        <line fill=\"none\" stroke=\"#000000\" stroke-width=\"5\" x1=\"258.069\" x2=\"409.431\" y1=\"482.14301\" y2=\"482.14301\"/>\n      </g>\n    </g>\n  </g>";
             }
         },
+        ORDERLY("BD", "Orderly", DismountedIndividualEntityType.TASK, GraphicType.MAIN) {
+            @Override
+            public String getGraphicMarkup(StandardIdentity identity) {
+                return "<g id=\"main\">\n    <text font-family=\"sans-serif\" font-size=\"130\" transform=\"matrix(1 0 0 1 254.45 442.25)\">O</text>\n  </g>";
+            }
+        },
         RIFLE("01", "Rifle", DismountedIndividualEntityType.LETHAL_WEAPONS, GraphicType.MAIN) {
             @Override
             public String getGraphicMarkup(StandardIdentity identity) {
