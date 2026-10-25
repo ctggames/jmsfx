@@ -246,6 +246,12 @@ public enum DismountedIndividualSectorTwoModifier implements SectorTwoModifier {
                 return "<g id=\"mod2\" transform=\"translate(3.2812,6)\">\n    <text font-family=\"sans-serif\" font-size=\"64px\" x=\"237.04692\" y=\"490.5146\">SEA</text>\n  </g>";
             }
         },
+        COS("A6", "Chief of Staff", ModifierCategory.FunctionalStaffArea) {
+            @Override
+            public String getGraphicMarkup() {
+                return "<g id=\"mod2\" transform=\"translate(3.2812,6)\">\n    <text font-family=\"sans-serif\" font-size=\"64px\" x=\"231.73\" y=\"490.5146\">COS</text>\n  </g>";
+            }
+        },
         COMMAND_CONTROL_MOD2("B1", "Command/Control", ModifierCategory.Crew) {
             @Override
             public String getGraphicMarkup() {

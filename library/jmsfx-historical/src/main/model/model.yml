@@ -132,6 +132,12 @@ amplifierGroups:
       "3": {minX: 170.79, minY: 225.5, width: 268.41, height: 82.0}
       "4": {minX: 167.5, minY: 193.63, width: 274.0, height: 60.0}
       "6": {minX: 113.98, minY: 179.87, width: 382.04, height: 195.25}
+  - details: {code: "7D", id: "CHIEF_OF_STAFF", label: "Chief of Staff"}
+    bounds:
+      "1": {minX: 132.28, minY: 183.0, width: 345.45, height: 127.26}
+      "3": {minX: 170.79, minY: 225.5, width: 268.41, height: 82.0}
+      "4": {minX: 167.5, minY: 193.63, width: 274.0, height: 60.0}
+      "6": {minX: 113.98, minY: 179.87, width: 382.04, height: 195.25}
 - details: {code: "8", id: SERVICE_TIER, label: "Service Tier", before: A1}
   config: {typeName: ServiceTier, graphicLocation: "Amplifier", standard: true, frameAmplifier: true, enumId: SERVICE_TIER, enumDesc: "Service Tiers", symbolSets: [LAND_UNIT]}
   values:
@@ -474,6 +480,7 @@ symbolSets:
       - details: {code: "BA", id: SEAPORT_OPERATOR, graphicType: MAIN, label: "Sea Port Operator"}
       - details: {code: "BB", id: AIRPORT_OPERATOR, graphicType: MAIN, label: "Airport Operator"}
       - details: {code: "BC", id: RAILWAY_OPERATOR, graphicType: MAIN, label: "Railway Operator"}
+      - details: {code: "BD", id: ORDERLY, graphicType: MAIN, label: "Orderly"}
   sectorOneMods:
   - details: {code: "A0", category: Echelon, id: STAFFEL, before: 51, label: "Staffel"}
   - details: {code: "A1", category: Echelon, id: BRIGADE, label: "Brigade"}
@@ -489,6 +496,7 @@ symbolSets:
   - details: {code: "A3", category: FunctionalStaffArea, id: CDR, label: "Commander"}
   - details: {code: "A4", category: FunctionalStaffArea, id: SIC, label: "Second-in-Command"}
   - details: {code: "A5", category: FunctionalStaffArea, id: SEA, label: "Senior Enlisted Advisor"}
+  - details: {code: "A6", category: FunctionalStaffArea, id: COS, label: "Chief of Staff"}
   - details: {code: "B1", category: Crew, id: COMMAND_CONTROL_MOD2, label: "Command/Control"}
   - details: {code: "B2", category: Crew, id: DRIVER_MOD2, label: "Driver"}
   - details: {code: "B3", category: Crew, id: GUNNER_MOD2, label: "Gunner"}
