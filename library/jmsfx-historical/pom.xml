@@ -1,17 +1,27 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+  <!--
+      jmsfx-historical has its own version line (jmsfx#175): it changes on its own schedule, and a tag named
+      jmsfx-historical-X.Y.Z releases it alone. Central takes no artifact whose parent is a snapshot, so the
+      parent is the released jmsfx-parent from Central rather than the one in this tree, and jmsfx-core is
+      pinned to a released version below - which is how jmsfx-parent says a lifecycle is split off. Move
+      both forward deliberately, when a jmsfx release has something this library needs.
+  -->
   <parent>
     <groupId>io.github.ctgnz</groupId>
     <artifactId>jmsfx-parent</artifactId>
-    <version>2.0.3-SNAPSHOT</version>
-    <relativePath>../../jmsfx-parent/pom.xml</relativePath>
+    <version>2.0.2</version>
+    <relativePath/>
   </parent>
 
   <properties>
       <!-- Two levels below the repository root (see jmsfx-parent). -->
       <jmsfx.root>${project.basedir}/../..</jmsfx.root>
+      <jmsfx.core.version>2.0.2</jmsfx.core.version>
   </properties>
   <artifactId>jmsfx-historical</artifactId>
+  <!-- Its own, not the repository's. jmsfx-parent's jmsfx.historical.version must name the same. -->
+  <version>2.1.0-SNAPSHOT</version>
     <name>JMSFX Historical Extension</name>
     <description>An extension to the APP-6E symbology model for depicting historical military organisation: icons APP-6E dropped, an enlarged Dismounted Individual symbol set, and additional amplifiers for formations and equipment modern NATO armies no longer field.</description>
     <dependencies>
